@@ -211,6 +211,7 @@ function hudBox(ctx, x, y, w, h) {
   ctx.strokeRect(x + 0.5, y + 0.5, w, h);
 }
 
+// Outlined 21px digits stay legible against bright sky inside the same box.
 function drawReadouts(ctx, state) {
   const p = state.plane;
   const heading = (wrapAngle(p.hdg) * 180 / Math.PI + 360) % 360;
@@ -224,11 +225,14 @@ function drawReadouts(ctx, state) {
     const x = 488 + i * 108;
     ctx.textAlign = 'left';
     ctx.fillStyle = PALETTE.hudDim;
-    ctx.font = '11px ui-monospace, monospace';
-    ctx.fillText(label, x, 40);
-    ctx.fillStyle = PALETTE.hud;
-    ctx.font = 'bold 19px ui-monospace, monospace';
-    ctx.fillText(value, x, 62);
+    ctx.font = 'bold 12px ui-monospace, monospace';
+    ctx.fillText(label, x, 38);
+    ctx.font = 'bold 21px ui-monospace, monospace';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(4, 14, 18, 0.85)';
+    ctx.strokeText(value, x, 64);
+    ctx.fillStyle = '#eafff2';
+    ctx.fillText(value, x, 64);
     if (i) {
       ctx.fillStyle = 'rgba(150,220,185,0.25)';
       ctx.fillRect(x - 10, 28, 1, 38);

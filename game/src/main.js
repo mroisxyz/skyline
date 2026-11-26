@@ -26,9 +26,36 @@ function applyControls(controls) {
 }
 
 // A compact progress strip in the clear top-right sky, derived only from state.
-function drawMissionStrip(ctx, state) {
+// One deterministic target distance shared by the strip and the sky callout.
+function targetInfo(state) {
   const mission = MISSIONS[state.missionIndex];
   const p = state.plane;
+  if (mission.kind === 'rings') {
+    const ring = currentRing(state);
+    return {
+      label: 'TARGET BEACON',
+      distance: ring ? Math.round(Math.hypot(ring.x - p.x, ring.z - p.z)) : 0,
+      done: !ring
+    };
+  }
+  if (mission.kind === 'landing') {
+    return {
+      label: 'RUNWAY 09',
+      distance: Math.max(0, Math.round(p.z - WORLD.runway.z0)),
+      done: false
+    };
+  }
+  const stop = WORLD.towns[1];
+  return {
+    label: state.mission.townReached ? 'SKYLINE FIELD' : 'ALDER QUAY',
+    distance: Math.round(Math.hypot(p.x - stop.x, p.z - stop.z)),
+    done: false
+  };
+}
+
+function drawMissionStrip(ctx, state) {
+  const mission = MISSIONS[state.missionIndex];
+  const target = targetInfo(state);
   let label = '';
   let detail = '';
   let filled = 0;
@@ -38,14 +65,13 @@ function drawMissionStrip(ctx, state) {
     total = WORLD.rings.length;
     filled = state.mission.ringsPassed;
     label = `BEACON ${Math.min(filled + 1, total)}/${total}`;
-    detail = ring ? `${Math.round(Math.hypot(ring.x - p.x, ring.z - p.z))} m to gate` : 'ROUTE COMPLETE';
+    detail = ring ? `${target.distance} m to gate` : 'ROUTE COMPLETE';
   } else if (mission.kind === 'landing') {
-    label = `RUNWAY 09 · ${Math.max(0, Math.round(p.z - WORLD.runway.z0))} m`;
+    label = `RUNWAY 09 · ${target.distance} m`;
     detail = p.gear ? (Math.abs(p.x) < WORLD.runway.width / 2 ? 'GEAR DOWN · CENTRELINE' : 'GEAR DOWN · CORRECT LEFT/RIGHT') : 'GEAR UP · SELECT DOWN';
     filled = p.gear ? 1 : 0;
   } else {
-    const stop = WORLD.towns[1];
-    const distance = Math.round(Math.hypot(p.x - stop.x, p.z - stop.z));
+    const distance = target.distance;
     label = state.mission.townReached ? `RETURN · ${distance} m` : `ALDER QUAY · ${distance} m`;
     detail = state.mission.townReached ? 'LAND AT SKYLINE FIELD' : 'OUTBOUND MAIL RUN';
     total = 2;
@@ -77,6 +103,25 @@ function drawMissionStrip(ctx, state) {
   ctx.fillText(detail, x + w - 12, y + 37);
 }
 
+// Bracketed target distance in the clear sky below the readouts.
+function drawTargetCallout(ctx, state) {
+  const target = targetInfo(state);
+  const text = target.done ? '[ ROUTE COMPLETE ]' : `[ ${target.label} · ${target.distance} m ]`;
+  const w = 330, h = 20, x = CANVAS.CX - w / 2, y = 78;
+  ctx.fillStyle = 'rgba(8, 20, 25, 0.58)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(255, 210, 113, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 13px ui-monospace, monospace';
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(4, 14, 18, 0.8)';
+  ctx.strokeText(text, CANVAS.CX, y + 14);
+  ctx.fillStyle = PALETTE.gold;
+  ctx.fillText(text, CANVAS.CX, y + 14);
+}
+
 export function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, CANVAS.W, CANVAS.H);
@@ -93,6 +138,7 @@ export function render() {
   drawAircraft(ctx, state, view);
   drawPanel(ctx, state);
   drawHUD(ctx, state, view);
+  drawTargetCallout(ctx, state);
   drawMissionStrip(ctx, state);
 }
 

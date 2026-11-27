@@ -53,6 +53,21 @@ function targetInfo(state) {
   };
 }
 
+// This readout consumes existing state only: hull damage plus a fixed score
+// made from cleared gates, route completion and the remaining target range.
+function sortieStats(state) {
+  const p = state.plane;
+  const mission = MISSIONS[state.missionIndex];
+  const target = targetInfo(state);
+  const damage = Math.max(0, Math.min(100, Math.round(p.damage)));
+  const gates = state.mission.ringsPassed * 350;
+  const cleared = state.mission.complete ? 600 : 0;
+  const approach = mission.kind === 'rings' && !target.done
+    ? Math.max(0, 300 - Math.floor(target.distance / 25))
+    : Math.max(0, Math.round(p.fuel) * 2);
+  return { damage, score: Math.max(0, gates + cleared + approach) };
+}
+
 function drawMissionStrip(ctx, state) {
   const mission = MISSIONS[state.missionIndex];
   const target = targetInfo(state);
@@ -103,6 +118,24 @@ function drawMissionStrip(ctx, state) {
   ctx.fillText(detail, x + w - 12, y + 37);
 }
 
+// A single compact line tucked under the mission strip and beside the callout.
+function drawSortiePanel(ctx, state) {
+  const { damage, score } = sortieStats(state);
+  const text = `SORTIE  DAMAGE ${damage}%  ·  SCORE ${score}`;
+  const x = 832, y = 70, w = 426, h = 26;
+  ctx.fillStyle = 'rgba(8, 20, 25, 0.62)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(150, 220, 185, 0.35)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
+  ctx.fillStyle = PALETTE.gold;
+  ctx.fillRect(x, y, 4, h);
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 13px ui-monospace, monospace';
+  ctx.fillStyle = damage > 0 ? PALETTE.warn : PALETTE.hud;
+  ctx.fillText(text, x + 14, y + 17);
+}
+
 // Bracketed target distance in the clear sky below the readouts.
 function drawTargetCallout(ctx, state) {
   const target = targetInfo(state);
@@ -140,6 +173,7 @@ export function render() {
   drawHUD(ctx, state, view);
   drawTargetCallout(ctx, state);
   drawMissionStrip(ctx, state);
+  drawSortiePanel(ctx, state);
 }
 
 let lastFrame = 0;
